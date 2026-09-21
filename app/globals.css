@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f7f8;
+  --surface: #ffffff;
+  --surface-muted: #f1f4f3;
+  --foreground: #17201d;
+  --muted: #68736f;
+  --border: #e2e8e5;
+  --accent: #087a55;
+  --accent-strong: #056343;
+  --accent-soft: #e6f4ee;
+  --danger: #c33b45;
+  --danger-soft: #fceced;
+  --warning: #a56812;
+  --warning-soft: #fff4df;
+  --sidebar: #10221c;
+  --sidebar-text: #eaf3ef;
+  --radius: 14px;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0d1210;
+  --surface: #141b18;
+  --surface-muted: #19231f;
+  --foreground: #e8efec;
+  --muted: #9ba8a3;
+  --border: #26322d;
+  --accent: #4fc99a;
+  --accent-strong: #6edbad;
+  --accent-soft: #173a2d;
+  --danger: #ff8990;
+  --danger-soft: #3b2023;
+  --warning: #f1b95d;
+  --warning-soft: #382b17;
+  --sidebar: #101714;
+  --sidebar-text: #eaf3ef;
+  color-scheme: dark;
+}
+
+* { border-color: var(--border); }
+html { background: var(--background); }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Vazirmatn, IRANSansX, Tahoma, Arial, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+.numbers { font-variant-numeric: tabular-nums; }
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.focus-ring:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+.surface-muted { background: var(--surface-muted); }
+.text-muted { color: var(--muted); }
+.soft-accent { background: var(--accent-soft); color: var(--accent-strong); }
+.icon-button {
+  display: inline-flex; width: 38px; height: 38px; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--foreground);
+  transition: background .18s ease, transform .18s ease;
+}
+.icon-button:hover { background: var(--surface-muted); }
+.icon-button:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

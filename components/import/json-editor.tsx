@@ -1,0 +1,5 @@
+import { Braces } from "lucide-react";
+
+export function JsonEditor({ value, onChange, error }: { value: string; onChange: (value: string) => void; error?: string }) {
+  return <div><div className="mb-2 flex items-center justify-between"><label htmlFor="json-editor" className="flex items-center gap-2 text-xs font-semibold"><Braces size={15}/>متن JSON</label><span className="numbers text-[10px] text-[var(--muted)]">{value.length.toLocaleString("fa-IR")} نویسه</span></div><textarea id="json-editor" dir="ltr" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} placeholder={'[\n  {\n    "date": "2026-09-09",\n    "amount": -15000000,\n    "account": "expenses:food",\n    "commodity": "IRR"\n  }\n]'} className={`scrollbar-thin min-h-[340px] w-full resize-y rounded-[12px] border bg-[var(--surface-muted)] p-4 font-mono text-xs leading-6 outline-none focus:border-[var(--accent)] ${error ? "border-[var(--danger)]" : ""}`}/>{error && <p className="mt-2 rounded-[9px] bg-[var(--danger-soft)] px-3 py-2 text-xs text-[var(--danger)]">{error}</p>}</div>;
+}
