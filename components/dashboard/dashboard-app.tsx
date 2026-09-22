@@ -54,18 +54,31 @@ export function DashboardApp() {
       const savedTheme = localStorage.getItem(THEME_KEY);
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setDark(savedTheme ? savedTheme === "dark" : prefersDark);
-    } catch { localStorage.removeItem(STORAGE_KEY); }
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
     setHydrated(true);
   }, []);
 
-  useEffect(() => { document.documentElement.classList.toggle("dark", dark); if (hydrated) localStorage.setItem(THEME_KEY, dark ? "dark" : "light"); }, [dark, hydrated]);
-  useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions.map((t) => t.raw))); }, [transactions, hydrated]);
-  useEffect(() => { if (hydrated) localStorage.setItem(COMMITMENTS_STORAGE_KEY, JSON.stringify(commitments)); }, [commitments, hydrated]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    if (hydrated) localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+  }, [dark, hydrated]);
+  useEffect(() => {
+    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions.map((t) => t.raw)));
+  }, [transactions, hydrated]);
+  useEffect(() => {
+    if (hydrated) localStorage.setItem(COMMITMENTS_STORAGE_KEY, JSON.stringify(commitments));
+  }, [commitments, hydrated]);
 
   const filtered = useMemo(() => filterTransactions(transactions, filters), [transactions, filters]);
   const comparisonTransactions = useMemo(() => filterTransactions(transactions, { ...filters, datePreset: "all", startDate: undefined, endDate: undefined }), [transactions, filters]);
   const accounts = useMemo(() => [...new Set(transactions.map((t) => t.account.raw))].sort(), [transactions]);
-  const categories = useMemo(() => [...new Map(transactions.map((t) => [t.account.category, { key: t.account.category, label: translateAccountSegment(t.account.category) }])).values()].sort((a,b) => a.label.localeCompare(b.label, "fa")), [transactions]);
+  const categories = useMemo(
+    () => [...new Map(transactions.map((t) => [t.account.category, { key: t.account.category, label: translateAccountSegment(t.account.category) }])).values()].sort((a, b) => a.label.localeCompare(b.label, "fa")),
+    [transactions],
+  );
+  const hasActiveFilters = filters.datePreset !== "all" || filters.account !== "all" || filters.category !== "all" || filters.type !== "all" || filters.currency !== "all" || filters.search.trim() !== "";
 
   const handleImport = (incoming: Transaction[], result: ImportResult) => {
     const combined = new Map(transactions.map((t) => [t.id, t]));
@@ -76,24 +89,124 @@ export function DashboardApp() {
       result.commitments.forEach((commitment) => combinedCommitments.set(commitment.id, commitment));
       setCommitments([...combinedCommitments.values()]);
     }
-    setLastImport(result); setView("overview");
+    setLastImport(result);
+    setView("overview");
   };
   const loadSample = () => {
     const sample = createSampleData().map((item, index) => parseTransaction(item, index));
-    setTransactions(sample); setLastImport({ valid: sample, invalid: [] }); setView("overview");
+    setTransactions(sample);
+    setLastImport({ valid: sample, invalid: [] });
+    setView("overview");
   };
   const goCategory = (key: string) => setFilters({ ...filters, category: key });
 
   const content = () => {
-    if (!transactions.length && view !== "import" && view !== "settings") return <EmptyState onImport={() => setImportOpen(true)} onSample={loadSample}/>;
-    if (view === "overview") return <Overview transactions={filtered} comparisonTransactions={comparisonTransactions} commitments={commitments} unit={unit} onCategory={goCategory} onTransactions={() => setView("transactions")} onSelect={setSelected}/>;
-    if (view === "transactions") return <TransactionTable transactions={filtered} unit={unit} filters={filters} setFilters={setFilters} accounts={accounts} categories={categories} onSelect={setSelected}/>;
-    if (view === "accounts") return <AccountTree transactions={filtered} unit={unit}/>;
-    if (view === "commitments") return <CommitmentsView commitments={commitments} unit={unit} onChange={setCommitments}/>;
-    if (view === "reports") return <div className="space-y-4"><FinancialInsights transactions={filtered} unit={unit}/><div className="grid gap-4 xl:grid-cols-2"><CashFlowChart transactions={filtered} unit={unit}/><IncomeExpenseChart transactions={filtered} unit={unit}/></div><MonthlyOverview transactions={filtered} unit={unit}/></div>;
-    if (view === "import") return <JsonImportDialog open onOpenChange={() => undefined} onImport={handleImport} embedded/>;
-    return <SettingsView transactions={transactions} dark={dark} setDark={setDark} onClear={() => { setTransactions([]); setCommitments([]); setFilters(initialFilters); localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(COMMITMENTS_STORAGE_KEY); }}/>;
+    if (!transactions.length && view !== "import" && view !== "settings") return <EmptyState onImport={() => setImportOpen(true)} onSample={loadSample} />;
+    if (view === "overview") return <Overview transactions={filtered} comparisonTransactions={comparisonTransactions} commitments={commitments} unit={unit} onCategory={goCategory} onTransactions={() => setView("transactions")} onSelect={setSelected} />;
+    if (view === "transactions") return <TransactionTable transactions={filtered} unit={unit} filters={filters} setFilters={setFilters} accounts={accounts} categories={categories} onSelect={setSelected} />;
+    if (view === "accounts") return <AccountTree transactions={filtered} unit={unit} />;
+    if (view === "commitments") return <CommitmentsView commitments={commitments} unit={unit} onChange={setCommitments} />;
+    if (view === "reports")
+      return (
+        <div className="space-y-4">
+          <FinancialInsights transactions={filtered} unit={unit} />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <CashFlowChart transactions={filtered} unit={unit} />
+            <IncomeExpenseChart transactions={filtered} unit={unit} />
+          </div>
+          <MonthlyOverview transactions={filtered} unit={unit} />
+        </div>
+      );
+    if (view === "import") return <JsonImportDialog open onOpenChange={() => undefined} onImport={handleImport} embedded />;
+    return (
+      <SettingsView
+        transactions={transactions}
+        commitments={commitments}
+        dark={dark}
+        setDark={setDark}
+        onClear={() => {
+          setTransactions([]);
+          setCommitments([]);
+          setFilters(initialFilters);
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(COMMITMENTS_STORAGE_KEY);
+        }}
+      />
+    );
   };
 
-  return <div className="min-h-[100dvh] bg-[var(--background)]"><Sidebar view={view} onViewChange={setView} open={menuOpen} onClose={() => setMenuOpen(false)}/><div className="lg:mr-[244px]"><DashboardHeader title={titles[view]} unit={unit} setUnit={setUnit} dark={dark} setDark={setDark} filters={filters} setFilters={setFilters} accounts={accounts} categories={categories} onImport={() => setImportOpen(true)} onMenu={() => setMenuOpen(true)}/><main className="mx-auto max-w-[1600px] p-4 md:p-6 xl:p-8">{lastImport && <div className="mb-4 flex items-start gap-3 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 text-[var(--accent-strong)]"><CheckCircle2 size={18} className="mt-0.5 shrink-0"/><div className="min-w-0 flex-1"><strong className="text-xs">ورود اطلاعات انجام شد</strong><p className="mt-1 text-[11px]">{lastImport.valid.length.toLocaleString("fa-IR")} تراکنش با موفقیت وارد شد و {lastImport.invalid.length.toLocaleString("fa-IR")} رکورد نامعتبر نادیده گرفته شد.</p>{lastImport.invalid.length > 0 && <details className="mt-2 max-w-xl"><summary className="cursor-pointer text-[11px] underline">مشاهده جزئیات خطاها</summary><div className="mt-2"><ImportSummary result={lastImport}/></div></details>}</div><button aria-label="بستن اعلان" onClick={() => setLastImport(null)}><X size={16}/></button></div>}{!hydrated ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="card h-32 animate-pulse bg-[var(--surface-muted)]"/>)}</div> : content()}</main></div><JsonImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport}/><TransactionDetails transaction={selected} unit={unit} onClose={() => setSelected(null)}/></div>;
+  return (
+    <div className="app-shell min-h-[100dvh] bg-[var(--background)]">
+      <Sidebar view={view} onViewChange={setView} open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <div className="lg:mr-[252px]">
+        <DashboardHeader
+          title={titles[view]}
+          unit={unit}
+          setUnit={setUnit}
+          dark={dark}
+          setDark={setDark}
+          filters={filters}
+          setFilters={setFilters}
+          accounts={accounts}
+          categories={categories}
+          onImport={() => setImportOpen(true)}
+          onMenu={() => setMenuOpen(true)}
+          onResetFilters={() => setFilters(initialFilters)}
+          hasActiveFilters={hasActiveFilters}
+          resultCount={filtered.length}
+        />
+        <main id="main-content" className="mx-auto max-w-[1600px] p-4 md:p-6 xl:p-8">
+          {lastImport && (
+            <div
+              role="status"
+              className="mb-4 flex items-start gap-3 rounded-[14px] border border-[var(--accent)]/25 bg-[var(--accent-soft)] p-3.5 text-[var(--accent-strong)]"
+            >
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/12">
+                <CheckCircle2 size={17} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <strong className="text-xs font-bold">ورود اطلاعات انجام شد</strong>
+                <p className="mt-1 text-[11px] leading-6">
+                  {lastImport.valid.length.toLocaleString("fa-IR")} تراکنش با موفقیت وارد شد و {lastImport.invalid.length.toLocaleString("fa-IR")} رکورد نامعتبر نادیده گرفته شد.
+                </p>
+                {lastImport.invalid.length > 0 && (
+                  <details className="mt-2 max-w-xl">
+                    <summary className="cursor-pointer text-[11px] font-semibold underline">مشاهده جزئیات خطاها</summary>
+                    <div className="mt-2">
+                      <ImportSummary result={lastImport} />
+                    </div>
+                  </details>
+                )}
+              </div>
+              <button aria-label="بستن اعلان" onClick={() => setLastImport(null)} className="rounded-lg p-1.5 transition hover:bg-[var(--accent)]/12">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {!hydrated ? <DashboardSkeleton /> : content()}
+        </main>
+      </div>
+      <JsonImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
+      <TransactionDetails transaction={selected} unit={unit} onClose={() => setSelected(null)} />
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <div className="card p-4 md:p-5">
+        <div className="skeleton h-5 w-40 rounded-full" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton h-[124px] rounded-[16px]" />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="skeleton h-[380px] rounded-[16px] xl:col-span-2" />
+        <div className="skeleton h-[380px] rounded-[16px]" />
+      </div>
+    </div>
+  );
 }
