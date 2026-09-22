@@ -1,10 +1,11 @@
 "use client";
 
-import { CalendarRange, Filter, Menu, Moon, Plus, RotateCcw, Sun } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { CalendarRange, Check, Filter, Menu, Moon, Palette, Plus, RotateCcw, Sparkles, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JalaliRangePicker } from "@/components/dashboard/jalali-range-picker";
 import { toPersianNumber } from "@/lib/formatters";
-import type { CurrencyUnit, DatePreset, Filters } from "@/lib/types";
+import type { CurrencyUnit, DatePreset, Filters, ThemeMode } from "@/lib/types";
 
 const presets: { value: DatePreset; label: string }[] = [
   { value: "thisMonth", label: "این ماه" },
@@ -17,12 +18,18 @@ const presets: { value: DatePreset; label: string }[] = [
   { value: "custom", label: "بازه دلخواه" },
 ];
 
+const themes: { value: ThemeMode; label: string; hint: string; icon: typeof Sun }[] = [
+  { value: "light", label: "روشن", hint: "شفاف و مناسب روز", icon: Sun },
+  { value: "dark", label: "تیره", hint: "کنتراست بالا و سبز عمیق", icon: Moon },
+  { value: "midnight", label: "نیمه‌شب", hint: "سرمه‌ای با تأکید فیروزه‌ای", icon: Sparkles },
+];
+
 export function DashboardHeader({
   title,
   unit,
   setUnit,
-  dark,
-  setDark,
+  theme,
+  setTheme,
   filters,
   setFilters,
   accounts,
@@ -36,8 +43,8 @@ export function DashboardHeader({
   title: string;
   unit: CurrencyUnit;
   setUnit: (u: CurrencyUnit) => void;
-  dark: boolean;
-  setDark: (v: boolean) => void;
+  theme: ThemeMode;
+  setTheme: (v: ThemeMode) => void;
   filters: Filters;
   setFilters: (next: Filters) => void;
   accounts: string[];
@@ -49,6 +56,8 @@ export function DashboardHeader({
   resultCount: number;
 }) {
   const update = <K extends keyof Filters>(key: K, value: Filters[K]) => setFilters({ ...filters, [key]: value });
+  const activeTheme = themes.find((item) => item.value === theme) ?? themes[0];
+  const ActiveThemeIcon = activeTheme.icon;
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--background)_86%,transparent)] backdrop-blur-xl">
@@ -68,14 +77,45 @@ export function DashboardHeader({
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
               {toPersianNumber(resultCount)} رکورد در بازه
             </span>
-            <button
-              aria-label={dark ? "فعال‌کردن حالت روشن" : "فعال‌کردن حالت تیره"}
-              aria-pressed={dark}
-              className="icon-button shrink-0"
-              onClick={() => setDark(!dark)}
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+            <DropdownMenu.Root dir="rtl">
+              <DropdownMenu.Trigger asChild>
+                <button aria-label={`انتخاب پوسته؛ پوسته فعلی ${activeTheme.label}`} className="icon-button shrink-0">
+                  <ActiveThemeIcon size={18} />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  className="z-50 min-w-[220px] rounded-[14px] border bg-[var(--surface)] p-1.5 text-[var(--foreground)] shadow-[var(--shadow-2)]"
+                >
+                  <div className="flex items-center gap-2 px-2.5 py-2 text-[10px] font-bold text-[var(--muted)]">
+                    <Palette size={13} />
+                    پوستهٔ برنامه
+                  </div>
+                  {themes.map((item) => {
+                    const Icon = item.icon;
+                    const selected = theme === item.value;
+                    return (
+                      <DropdownMenu.Item
+                        key={item.value}
+                        onSelect={() => setTheme(item.value)}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 outline-none transition data-[highlighted]:bg-[var(--surface-muted)]"
+                      >
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-[9px] ${selected ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "bg-[var(--surface-muted)] text-[var(--muted)]"}`}>
+                          <Icon size={15} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <strong className="block text-xs">{item.label}</strong>
+                          <small className="block text-[9.5px] text-[var(--muted)]">{item.hint}</small>
+                        </span>
+                        {selected && <Check size={15} className="text-[var(--accent-strong)]" />}
+                      </DropdownMenu.Item>
+                    );
+                  })}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
             <Button onClick={onImport} aria-label="ورود اطلاعات" size="icon" className="shrink-0 sm:hidden">
               <Plus size={18} />
             </Button>

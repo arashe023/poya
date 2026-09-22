@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f3f6f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a100e" },
+    { media: "(prefers-color-scheme: dark)", color: "#07110e" },
   ],
   colorScheme: "light dark",
 };
@@ -22,8 +22,9 @@ export const viewport: Viewport = {
 const themeInit = `
 try {
   var stored = localStorage.getItem("poya-finance-theme");
-  var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  if (dark) document.documentElement.classList.add("dark");
+  var valid = stored === "light" || stored === "dark" || stored === "midnight";
+  var theme = valid ? stored : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  if (theme !== "light") document.documentElement.classList.add(theme);
 } catch (error) {}
 `;
 

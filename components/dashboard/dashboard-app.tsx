@@ -21,7 +21,7 @@ import { parseTransaction } from "@/lib/financial-parser";
 import { filterTransactions } from "@/lib/filters";
 import { createSampleData } from "@/lib/sample-data";
 import { translateAccountSegment } from "@/lib/account-parser";
-import type { Commitment, CurrencyUnit, DashboardView, Filters, ImportResult, RawTransaction, Transaction } from "@/lib/types";
+import type { Commitment, CurrencyUnit, DashboardView, Filters, ImportResult, RawTransaction, ThemeMode, Transaction } from "@/lib/types";
 
 const STORAGE_KEY = "poya-finance-transactions-v1";
 const COMMITMENTS_STORAGE_KEY = "poya-finance-commitments-v1";
@@ -34,7 +34,7 @@ export function DashboardApp() {
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [unit, setUnit] = useState<CurrencyUnit>("IRT");
-  const [dark, setDark] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const [view, setView] = useState<DashboardView>("overview");
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [importOpen, setImportOpen] = useState(false);
@@ -53,7 +53,8 @@ export function DashboardApp() {
       if (storedCommitments) setCommitments(JSON.parse(storedCommitments) as Commitment[]);
       const savedTheme = localStorage.getItem(THEME_KEY);
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setDark(savedTheme ? savedTheme === "dark" : prefersDark);
+      const validTheme = savedTheme === "light" || savedTheme === "dark" || savedTheme === "midnight";
+      setTheme(validTheme ? savedTheme : prefersDark ? "dark" : "light");
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -61,9 +62,10 @@ export function DashboardApp() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    if (hydrated) localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
-  }, [dark, hydrated]);
+    document.documentElement.classList.remove("dark", "midnight");
+    if (theme !== "light") document.documentElement.classList.add(theme);
+    if (hydrated) localStorage.setItem(THEME_KEY, theme);
+  }, [theme, hydrated]);
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions.map((t) => t.raw)));
   }, [transactions, hydrated]);
@@ -122,8 +124,8 @@ export function DashboardApp() {
       <SettingsView
         transactions={transactions}
         commitments={commitments}
-        dark={dark}
-        setDark={setDark}
+        theme={theme}
+        setTheme={setTheme}
         onClear={() => {
           setTransactions([]);
           setCommitments([]);
@@ -143,8 +145,8 @@ export function DashboardApp() {
           title={titles[view]}
           unit={unit}
           setUnit={setUnit}
-          dark={dark}
-          setDark={setDark}
+          theme={theme}
+          setTheme={setTheme}
           filters={filters}
           setFilters={setFilters}
           accounts={accounts}

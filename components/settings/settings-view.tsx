@@ -1,21 +1,21 @@
 "use client";
 
-import { Database, Download, HandCoins, Moon, ReceiptText, ShieldCheck, Sun, Trash2, WalletCards } from "lucide-react";
+import { Database, Download, HandCoins, Moon, ReceiptText, ShieldCheck, Sparkles, Sun, Trash2, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toPersianNumber } from "@/lib/formatters";
-import type { Commitment, Transaction } from "@/lib/types";
+import type { Commitment, ThemeMode, Transaction } from "@/lib/types";
 
 export function SettingsView({
   transactions,
   commitments,
-  dark,
-  setDark,
+  theme,
+  setTheme,
   onClear,
 }: {
   transactions: Transaction[];
   commitments: Commitment[];
-  dark: boolean;
-  setDark: (v: boolean) => void;
+  theme: ThemeMode;
+  setTheme: (v: ThemeMode) => void;
   onClear: () => void;
 }) {
   const exportData = () => {
@@ -45,11 +45,11 @@ export function SettingsView({
             <p className="section-sub">حالت مناسب محیط خود را انتخاب کنید. انتخاب شما ذخیره می‌شود.</p>
           </div>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <button
-            onClick={() => setDark(false)}
-            aria-pressed={!dark}
-            className={`focus-ring rounded-[14px] border p-4 text-right transition ${!dark ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "hover:bg-[var(--surface-muted)]"}`}
+            onClick={() => setTheme("light")}
+            aria-pressed={theme === "light"}
+            className={`focus-ring rounded-[14px] border p-4 text-right transition ${theme === "light" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]"}`}
           >
             <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-[10px] bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-1)]">
               <Sun size={17} />
@@ -58,15 +58,26 @@ export function SettingsView({
             <span className="mt-1 block text-[10.5px] opacity-80">مناسب محیط‌های پرنور</span>
           </button>
           <button
-            onClick={() => setDark(true)}
-            aria-pressed={dark}
-            className={`focus-ring rounded-[14px] border p-4 text-right transition ${dark ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "hover:bg-[var(--surface-muted)]"}`}
+            onClick={() => setTheme("dark")}
+            aria-pressed={theme === "dark"}
+            className={`focus-ring rounded-[14px] border p-4 text-right transition ${theme === "dark" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]"}`}
           >
             <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#0c1d17] text-[#eaf3ef] shadow-[var(--shadow-1)]">
               <Moon size={17} />
             </span>
             <span className="block text-sm font-bold">تیره</span>
-            <span className="mt-1 block text-[10.5px] opacity-80">راحت‌تر برای شب</span>
+            <span className="mt-1 block text-[10.5px] opacity-80">سبز عمیق با کنتراست بالا</span>
+          </button>
+          <button
+            onClick={() => setTheme("midnight")}
+            aria-pressed={theme === "midnight"}
+            className={`focus-ring rounded-[14px] border p-4 text-right transition ${theme === "midnight" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]"}`}
+          >
+            <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#0b1b2e] text-[#91e8ed] shadow-[var(--shadow-1)]">
+              <Sparkles size={17} />
+            </span>
+            <span className="block text-sm font-bold">نیمه‌شب</span>
+            <span className="mt-1 block text-[10.5px] opacity-80">سرمه‌ای آرام با تأکید فیروزه‌ای</span>
           </button>
         </div>
       </section>

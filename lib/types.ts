@@ -1,4 +1,5 @@
 export type CurrencyUnit = "IRR" | "IRT";
+export type ThemeMode = "light" | "dark" | "midnight";
 export type TransactionType = "income" | "expenses" | "assets" | "liabilities" | "equity" | "other";
 export type DashboardView = "overview" | "transactions" | "accounts" | "commitments" | "reports" | "import" | "settings";
 export type DatePreset = "thisMonth" | "lastMonth" | "threeMonths" | "sixMonths" | "thisYear" | "lastYear" | "all" | "custom";
