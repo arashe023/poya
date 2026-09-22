@@ -167,7 +167,10 @@ export function DashboardApp() {
               <div className="min-w-0 flex-1">
                 <strong className="text-xs font-bold">ورود اطلاعات انجام شد</strong>
                 <p className="mt-1 text-[11px] leading-6">
-                  {lastImport.valid.length.toLocaleString("fa-IR")} تراکنش با موفقیت وارد شد و {lastImport.invalid.length.toLocaleString("fa-IR")} رکورد نامعتبر نادیده گرفته شد.
+                  {lastImport.valid.length.toLocaleString("fa-IR")} تراکنش
+                  {lastImport.commitments?.length ? ` و ${lastImport.commitments.length.toLocaleString("fa-IR")} تعهد گروهی` : ""}
+                  {" با موفقیت وارد شد و "}
+                  {lastImport.invalid.length.toLocaleString("fa-IR")} رکورد نامعتبر نادیده گرفته شد.
                 </p>
                 {lastImport.invalid.length > 0 && (
                   <details className="mt-2 max-w-xl">

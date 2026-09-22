@@ -45,6 +45,7 @@ interface LedgerTransaction { date?: unknown; description?: unknown; comment?: u
 interface CommitmentSchedule { id?: unknown; name?: unknown; total?: unknown; first_due?: unknown; currency?: unknown; shares?: unknown; payments?: unknown; receipts?: unknown }
 
 function asRecords(value: unknown): Record<string, unknown>[] { return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : []; }
+function asRecord(value: unknown): Record<string, unknown> | null { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null; }
 function numberValue(value: unknown) { const result = typeof value === "number" ? value : Number(String(value ?? "").replaceAll(",", "")); return Number.isFinite(result) ? result : 0; }
 function ledgerRawTransactions(items: Record<string, unknown>[]) {
   const raw: RawTransaction[] = [];
@@ -57,6 +58,12 @@ function ledgerRawTransactions(items: Record<string, unknown>[]) {
     });
   });
   return raw;
+}
+
+function objectTransactions(value: unknown) {
+  const items = asRecords(value);
+  const containsPostings = items.some((item) => Array.isArray(item.postings));
+  return containsPostings ? ledgerRawTransactions(items) : items as RawTransaction[];
 }
 
 function schedulesToCommitments(value: unknown): Commitment[] {
@@ -83,14 +90,33 @@ export function parseFinancialJson(input: string): ImportResult {
   try { parsed = JSON.parse(input); } catch {
     throw new Error("ساختار JSON نادرست است. ویرگول‌ها، کوتیشن‌ها و براکت‌ها را بررسی کنید.");
   }
-  const exportObject = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
-  const source = Array.isArray(parsed) ? parsed : exportObject ? ledgerRawTransactions(asRecords(exportObject.transactions)) : null;
-  if (!source) throw new Error("ریشه JSON باید آرایهٔ تراکنش‌ها یا خروجی دفترکل دارای transactions باشد");
+  const exportObject = asRecord(parsed);
+  const journal = asRecord(exportObject?.journal);
+  const rootTransactions = exportObject?.transactions;
+  const journalTransactions = journal?.transactions;
+  const schedules = exportObject?.commitment_schedules ?? journal?.commitment_schedules;
+  const hasTransactions = Array.isArray(rootTransactions) || Array.isArray(journalTransactions);
+  const hasCommitments = Array.isArray(schedules);
+  const source = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(rootTransactions)
+      ? objectTransactions(rootTransactions)
+      : Array.isArray(journalTransactions)
+        ? objectTransactions(journalTransactions)
+        : [];
+
+  if (!Array.isArray(parsed) && !hasTransactions && !hasCommitments) {
+    throw new Error("در این فایل آرایهٔ transactions یا commitment_schedules پیدا نشد؛ این بخش‌ها می‌توانند در ریشه یا داخل journal باشند.");
+  }
   const valid: Transaction[] = [];
   const invalid: ImportResult["invalid"] = [];
   source.forEach((item, index) => {
     try { valid.push(parseTransaction(item as RawTransaction, index)); }
     catch (error) { invalid.push({ index, reason: error instanceof Error ? error.message : "رکورد نامعتبر", raw: item }); }
   });
-  return { valid, invalid, commitments: exportObject ? schedulesToCommitments(exportObject.commitment_schedules) : undefined };
+  const commitments = schedulesToCommitments(schedules);
+  if (!valid.length && !invalid.length && !commitments.length) {
+    throw new Error("فایل معتبر است، اما هیچ تراکنش یا تعهدی برای ورود ندارد.");
+  }
+  return { valid, invalid, commitments: commitments.length ? commitments : undefined };
 }

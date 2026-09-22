@@ -1,10 +1,10 @@
-import { CheckCircle2, ChevronDown, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, HandCoins, XCircle } from "lucide-react";
 import { toPersianNumber } from "@/lib/formatters";
 import type { ImportResult } from "@/lib/types";
 
 export function ImportSummary({ result }: { result: ImportResult }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-3">
       <div className="flex items-center gap-3 rounded-[13px] bg-[var(--accent-soft)] p-3 text-[var(--accent-strong)]">
         <CheckCircle2 size={19} />
         <div>
@@ -19,8 +19,15 @@ export function ImportSummary({ result }: { result: ImportResult }) {
           <span className="text-[10px] opacity-90">هنگام ورود نادیده گرفته می‌شود</span>
         </div>
       </div>
+      <div className="flex items-center gap-3 rounded-[13px] bg-[var(--surface-muted)] p-3 text-[var(--foreground-soft)]">
+        <HandCoins size={19} className="text-[var(--accent)]" />
+        <div>
+          <strong className="numbers block text-sm font-bold">{toPersianNumber(result.commitments?.length ?? 0)} تعهد گروهی</strong>
+          <span className="text-[10px] text-[var(--muted)]">آماده ورود به بخش تعهدها</span>
+        </div>
+      </div>
       {result.invalid.length > 0 && (
-        <details className="rounded-[13px] border sm:col-span-2">
+        <details className="rounded-[13px] border sm:col-span-3">
           <summary className="flex cursor-pointer list-none items-center justify-between p-3 text-xs font-bold">
             مشاهده رکوردهای نامعتبر
             <ChevronDown size={15} />

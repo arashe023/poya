@@ -68,6 +68,8 @@ export function JsonImportDialog({
   };
 
   const validCount = analysis.result?.valid.length ?? 0;
+  const commitmentCount = analysis.result?.commitments?.length ?? 0;
+  const importableCount = validCount + commitmentCount;
 
   /* Radix only allows `Dialog.Title` / `Dialog.Description` inside a `Dialog.Root`.
      The embedded view renders the same markup without the dialog wrapper, so it
@@ -156,14 +158,20 @@ export function JsonImportDialog({
           </Dialog.Close>
         )}
         <Button
-          disabled={!validCount}
+          disabled={!importableCount}
           onClick={() => {
             if (!analysis.result) return;
             onImport(analysis.result.valid, analysis.result);
             if (!embedded) onOpenChange(false);
           }}
         >
-          {validCount ? `ورود ${toPersianNumber(validCount)} تراکنش` : "ورود تراکنش‌ها"}
+          {validCount && commitmentCount
+            ? `ورود ${toPersianNumber(validCount)} تراکنش و ${toPersianNumber(commitmentCount)} تعهد`
+            : validCount
+              ? `ورود ${toPersianNumber(validCount)} تراکنش`
+              : commitmentCount
+                ? `ورود ${toPersianNumber(commitmentCount)} تعهد`
+                : "ورود اطلاعات"}
         </Button>
       </div>
     </div>
