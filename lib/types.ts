@@ -5,6 +5,7 @@ export type DashboardView = "overview" | "transactions" | "accounts" | "commitme
 export type DatePreset = "thisMonth" | "lastMonth" | "threeMonths" | "sixMonths" | "thisYear" | "lastYear" | "all" | "custom";
 
 export interface RawTransaction {
+  id?: unknown;
   date2?: unknown;
   amount?: unknown;
   txnidx?: unknown;
@@ -19,6 +20,10 @@ export interface RawTransaction {
   "posting-status"?: unknown;
   "posting-comment"?: unknown;
   comment?: unknown;
+  postings?: unknown;
+  type?: unknown;
+  currency?: unknown;
+  category?: unknown;
   [key: string]: unknown;
 }
 

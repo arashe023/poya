@@ -1,7 +1,7 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, Code2, Copy, X } from "lucide-react";
+import { Check, Code2, Copy, Landmark, X } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ export function TransactionDetails({ transaction, unit, onClose }: { transaction
   if (!transaction) return null;
 
   const raw = JSON.stringify(transaction.raw, null, 2);
+  const postings = Array.isArray(transaction.raw.postings)
+    ? transaction.raw.postings.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    : [];
   const copyRaw = async () => {
     try {
       await navigator.clipboard.writeText(raw);
@@ -73,6 +76,29 @@ export function TransactionDetails({ transaction, unit, onClose }: { transaction
               </div>
             ))}
           </dl>
+
+          {postings.length > 0 && (
+            <section className="mt-5 rounded-[14px] border">
+              <div className="flex items-center gap-2 border-b p-4">
+                <Landmark size={16} className="text-[var(--accent)]" />
+                <h3 className="text-xs font-bold">ثبت‌های حسابداری</h3>
+                <span className="numbers mr-auto rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] text-[var(--muted)]">{toPersianNumber(postings.length)} ردیف</span>
+              </div>
+              <div className="divide-y">
+                {postings.map((posting, index) => (
+                  <div key={`${String(posting.account)}-${index}`} className="flex items-center gap-3 px-4 py-3 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p dir="ltr" className="truncate text-left font-mono text-[11px] font-semibold">{String(posting.account ?? "حساب نامشخص")}</p>
+                      {posting.direction ? <p className="mt-1 text-[9.5px] text-[var(--muted)]">{String(posting.direction)}</p> : null}
+                    </div>
+                    <strong dir="ltr" className="numbers whitespace-nowrap text-[11px]">
+                      {formatNumber(Number(posting.amount ?? 0))} {currencyLabel(transaction.originalUnit)}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <details className="mt-5 rounded-[14px] border">
             <summary className="flex cursor-pointer list-none items-center gap-2 p-4 text-xs font-bold">

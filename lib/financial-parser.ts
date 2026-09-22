@@ -27,7 +27,7 @@ export function parseTransaction(raw: RawTransaction, index = 0): Transaction {
   const account = parseAccount(accountRaw);
   const normalizedAmount = account.type === "expenses" ? -Math.abs(amount) : account.type === "income" ? Math.abs(amount) : amount;
   return {
-    id: `${originalDate}-${String(raw.txnidx ?? index)}-${index}`,
+    id: raw.id ? String(raw.id) : `${originalDate}-${String(raw.txnidx ?? index)}-${index}`,
     ...jalali,
     amount: normalizedAmount,
     amountIRR: toBaseRial(normalizedAmount, unit),
@@ -40,24 +40,69 @@ export function parseTransaction(raw: RawTransaction, index = 0): Transaction {
   };
 }
 
-interface LedgerPosting { account?: unknown; amount?: unknown; commodity?: unknown }
-interface LedgerTransaction { date?: unknown; description?: unknown; comment?: unknown; tags?: unknown; postings?: unknown }
+interface LedgerPosting { account?: unknown; amount?: unknown; commodity?: unknown; direction?: unknown }
+interface LedgerTransaction { id?: unknown; date?: unknown; description?: unknown; comment?: unknown; tags?: unknown; postings?: unknown; amount?: unknown; commodity?: unknown; currency?: unknown; type?: unknown; category?: unknown; status?: unknown }
 interface CommitmentSchedule { id?: unknown; name?: unknown; total?: unknown; first_due?: unknown; currency?: unknown; shares?: unknown; payments?: unknown; receipts?: unknown }
 
 function asRecords(value: unknown): Record<string, unknown>[] { return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : []; }
 function asRecord(value: unknown): Record<string, unknown> | null { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null; }
 function numberValue(value: unknown) { const result = typeof value === "number" ? value : Number(String(value ?? "").replaceAll(",", "")); return Number.isFinite(result) ? result : 0; }
 function ledgerRawTransactions(items: Record<string, unknown>[]) {
-  const raw: RawTransaction[] = [];
-  items.forEach((item, transactionIndex) => {
+  return items.map((item, transactionIndex): RawTransaction => {
     const transaction = item as LedgerTransaction;
-    asRecords(transaction.postings).forEach((posting, postingIndex) => {
-      const line = posting as LedgerPosting;
-      if (!line.account || line.amount === undefined || !line.commodity) return;
-      raw.push({ date: transaction.date, description: transaction.description, comment: transaction.comment, tags: transaction.tags, account: line.account, amount: line.amount, commodity: line.commodity, txnidx: `ledger-${transactionIndex}-${postingIndex}` });
-    });
+    const postings = asRecords(transaction.postings) as LedgerPosting[];
+    if (!postings.length) return item as RawTransaction;
+
+    const typed = postings.map((posting) => ({
+      posting,
+      account: parseAccount(String(posting.account ?? "")),
+      amount: numberValue(posting.amount),
+    }));
+    const typeHint = String(transaction.type ?? "").toLowerCase();
+    const expense = typed.find((line) => line.account.type === "expenses");
+    const income = typed.find((line) => line.account.type === "income");
+    const liability = typed.find((line) => line.account.type === "liabilities");
+    const positiveAsset = typed.find((line) => line.account.type === "assets" && line.amount > 0);
+    const negativeAsset = typed.find((line) => line.account.type === "assets" && line.amount < 0);
+
+    let primary = expense ?? income ?? liability ?? positiveAsset ?? negativeAsset ?? typed[0];
+    if (typeHint === "income") primary = income ?? primary;
+    if (typeHint === "expense" || typeHint === "expenses") primary = expense ?? primary;
+    if (typeHint === "installment" || typeHint === "liability") primary = liability ?? primary;
+
+    const hintedCategory = String(transaction.category ?? "").trim();
+    const fallbackAccount = typeHint === "income" && hintedCategory
+      ? `income:${hintedCategory}`
+      : (typeHint === "expense" || typeHint === "expenses") && hintedCategory
+        ? `expenses:${hintedCategory}`
+        : undefined;
+    const account = primary?.posting.account ?? fallbackAccount;
+    const explicitAmount = transaction.amount === undefined ? 0 : Math.abs(numberValue(transaction.amount));
+    const derivedAmount = expense
+      ? Math.abs(expense.amount)
+      : income
+        ? Math.abs(positiveAsset?.amount ?? income.amount)
+        : liability
+          ? Math.abs(liability.amount)
+          : Math.abs(primary?.amount ?? 0);
+    const commodity = transaction.currency ?? transaction.commodity ?? primary?.posting.commodity ?? postings.find((posting) => posting.commodity)?.commodity;
+    const stableId = String(transaction.id ?? `${String(transaction.date ?? "unknown")}-ledger-${transactionIndex}`);
+
+    return {
+      ...item,
+      id: stableId,
+      date: transaction.date,
+      description: transaction.description,
+      comment: transaction.comment,
+      tags: transaction.tags,
+      status: transaction.status,
+      account,
+      amount: explicitAmount || derivedAmount,
+      commodity,
+      txnidx: stableId,
+      postings,
+    };
   });
-  return raw;
 }
 
 function objectTransactions(value: unknown) {

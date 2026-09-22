@@ -6,6 +6,7 @@ import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ImportSummary } from "@/components/import/import-summary";
 import { JsonEditor } from "@/components/import/json-editor";
+import { RemoteJsonSource } from "@/components/import/remote-json-source";
 import { parseFinancialJson } from "@/lib/financial-parser";
 import { sampleJson } from "@/lib/sample-data";
 import { toPersianNumber } from "@/lib/formatters";
@@ -103,6 +104,14 @@ export function JsonImportDialog({
           </Dialog.Close>
         )}
       </div>
+
+      <RemoteJsonSource
+        onText={setText}
+        onImport={(transactions, result) => {
+          onImport(transactions, result);
+          if (!embedded) onOpenChange(false);
+        }}
+      />
 
       <div
         onDragOver={(event) => {
