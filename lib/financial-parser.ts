@@ -1,7 +1,7 @@
 import { parseAccount } from "@/lib/account-parser";
 import { normalizeCurrency, toBaseRial } from "@/lib/currency";
 import { toJalali } from "@/lib/jalali-date";
-import type { Commitment, ImportResult, RawTransaction, Transaction } from "@/lib/types";
+import type { Commitment, ImportedFinancialSummary, ImportResult, Liability, RawTransaction, Transaction } from "@/lib/types";
 
 function numericAmount(raw: RawTransaction) {
   const candidates = [raw.amount, raw.credit, raw.debit];
@@ -42,7 +42,8 @@ export function parseTransaction(raw: RawTransaction, index = 0): Transaction {
 
 interface LedgerPosting { account?: unknown; amount?: unknown; commodity?: unknown; direction?: unknown }
 interface LedgerTransaction { id?: unknown; date?: unknown; description?: unknown; comment?: unknown; tags?: unknown; postings?: unknown; amount?: unknown; commodity?: unknown; currency?: unknown; type?: unknown; category?: unknown; status?: unknown }
-interface CommitmentSchedule { id?: unknown; name?: unknown; total?: unknown; first_due?: unknown; currency?: unknown; shares?: unknown; payments?: unknown; receipts?: unknown }
+interface ApiCommitment { id?: unknown; name?: unknown; total_due?: unknown; paid_to_commitment?: unknown; next_due_date?: unknown; currency?: unknown; friends_share?: unknown; status?: unknown }
+interface ApiLiability { id?: unknown; name?: unknown; account?: unknown; total_due?: unknown; paid?: unknown; remaining?: unknown; currency?: unknown; status?: unknown }
 
 function asRecords(value: unknown): Record<string, unknown>[] { return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : []; }
 function asRecord(value: unknown): Record<string, unknown> | null { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null; }
@@ -111,23 +112,89 @@ function objectTransactions(value: unknown) {
   return containsPostings ? ledgerRawTransactions(items) : items as RawTransaction[];
 }
 
-function schedulesToCommitments(value: unknown): Commitment[] {
+function currencyFactor(value: unknown) {
+  const currency = String(value ?? "TOMAN").toUpperCase();
+  return currency === "IRR" || currency === "RIAL" ? 10 : 1;
+}
+
+function parseLiabilities(value: unknown, defaultCurrency: unknown): Liability[] {
   return asRecords(value).map((item, index) => {
-    const schedule = item as CommitmentSchedule;
-    const currency = String(schedule.currency ?? "IRR").toUpperCase();
-    const factor = currency === "IRR" || currency === "RIAL" ? 10 : 1;
-    const receipts = asRecords(schedule.receipts);
-    const payments = asRecords(schedule.payments);
-    const receivables = asRecords(schedule.shares).map((share, shareIndex) => {
-      const friendId = String(share.id ?? `friend-${shareIndex}`);
-      const expected = numberValue(share.expected) / factor;
-      const received = receipts.filter((receipt) => String(receipt.friend ?? "") === friendId).reduce((sum, receipt) => sum + numberValue(receipt.amount) / factor, 0);
-      return { id: friendId, name: String(share.name ?? friendId), expected, received: Math.min(expected, received) };
-    });
-    const totalDue = numberValue(schedule.total) / factor;
-    const friendsTotal = receivables.reduce((sum, friend) => sum + friend.expected, 0);
-    return { id: String(schedule.id ?? `commitment-${index}`), name: String(schedule.name ?? schedule.id ?? "تعهد گروهی"), totalDue, paidToProvider: Math.min(totalDue, payments.reduce((sum, payment) => sum + numberValue(payment.amount) / factor, 0)), dueDate: String(schedule.first_due ?? ""), myShare: Math.max(0, totalDue - friendsTotal), receivables };
+    const liability = item as ApiLiability;
+    const unit = normalizeCurrency(liability.currency ?? defaultCurrency) ?? "IRT";
+    const factor = currencyFactor(liability.currency ?? defaultCurrency);
+    const totalDue = numberValue(liability.total_due) / factor;
+    const paid = Math.min(totalDue, numberValue(liability.paid) / factor);
+    return {
+      id: String(liability.id ?? `liability-${index}`),
+      name: String(liability.name ?? liability.id ?? "بدهی"),
+      account: String(liability.account ?? ""),
+      totalDue,
+      paid,
+      remaining: liability.remaining === undefined ? Math.max(0, totalDue - paid) : numberValue(liability.remaining) / factor,
+      currency: unit,
+      status: String(liability.status ?? "active"),
+    };
   });
+}
+
+function apiCommitments(value: unknown, liabilities: Liability[], defaultCurrency: unknown): Commitment[] {
+  const liabilityById = new Map(liabilities.map((liability) => [liability.id, liability]));
+  const commitments = asRecords(value).map((item, index): Commitment => {
+    const commitment = item as ApiCommitment;
+    const id = String(commitment.id ?? `commitment-${index}`);
+    const liability = liabilityById.get(id);
+    const factor = currencyFactor(commitment.currency ?? liability?.currency ?? defaultCurrency);
+    const friendsShare = asRecord(commitment.friends_share);
+    const receivables = asRecords(friendsShare?.by_friend).map((friend, friendIndex) => {
+      const expected = numberValue(friend.expected) / factor;
+      return {
+        id: String(friend.id ?? `friend-${friendIndex}`),
+        name: String(friend.name ?? friend.id ?? `دوست ${friendIndex + 1}`),
+        expected,
+        received: Math.min(expected, numberValue(friend.received) / factor),
+      };
+    });
+    const totalDue = commitment.total_due === undefined ? liability?.totalDue ?? 0 : numberValue(commitment.total_due) / factor;
+    const paidToProvider = commitment.paid_to_commitment === undefined ? liability?.paid ?? 0 : numberValue(commitment.paid_to_commitment) / factor;
+    const friendsTotal = receivables.reduce((sum, friend) => sum + friend.expected, 0);
+    return {
+      id,
+      name: String(commitment.name ?? liability?.name ?? commitment.id ?? "تعهد گروهی"),
+      totalDue,
+      paidToProvider: Math.min(totalDue, paidToProvider),
+      dueDate: String(commitment.next_due_date ?? ""),
+      myShare: friendsShare?.own_share === undefined ? Math.max(0, totalDue - friendsTotal) : numberValue(friendsShare.own_share) / factor,
+      receivables,
+    };
+  });
+
+  const commitmentIds = new Set(commitments.map((commitment) => commitment.id));
+  liabilities.forEach((liability) => {
+    if (commitmentIds.has(liability.id)) return;
+    commitments.push({
+      id: liability.id,
+      name: liability.name,
+      totalDue: liability.totalDue,
+      paidToProvider: liability.paid,
+      dueDate: "",
+      myShare: liability.totalDue,
+      receivables: [],
+    });
+  });
+  return commitments;
+}
+
+function parseSummary(value: unknown, defaultCurrency: unknown): ImportedFinancialSummary | undefined {
+  const summary = asRecord(value);
+  if (!summary) return undefined;
+  const currency = normalizeCurrency(summary.currency ?? defaultCurrency) ?? "IRT";
+  return {
+    income: numberValue(summary.income),
+    expense: numberValue(summary.expense),
+    net: numberValue(summary.net),
+    transactionCount: numberValue(summary.transaction_count),
+    currency,
+  };
 }
 
 export function parseFinancialJson(input: string): ImportResult {
@@ -136,22 +203,20 @@ export function parseFinancialJson(input: string): ImportResult {
     throw new Error("ساختار JSON نادرست است. ویرگول‌ها، کوتیشن‌ها و براکت‌ها را بررسی کنید.");
   }
   const exportObject = asRecord(parsed);
-  const journal = asRecord(exportObject?.journal);
   const rootTransactions = exportObject?.transactions;
-  const journalTransactions = journal?.transactions;
-  const schedules = exportObject?.commitment_schedules ?? journal?.commitment_schedules;
-  const hasTransactions = Array.isArray(rootTransactions) || Array.isArray(journalTransactions);
-  const hasCommitments = Array.isArray(schedules);
+  const rootCommitments = exportObject?.commitments;
+  const rootLiabilities = exportObject?.liabilities;
+  const hasTransactions = Array.isArray(rootTransactions);
+  const hasCommitments = Array.isArray(rootCommitments);
+  const hasLiabilities = Array.isArray(rootLiabilities);
   const source = Array.isArray(parsed)
     ? parsed
     : Array.isArray(rootTransactions)
       ? objectTransactions(rootTransactions)
-      : Array.isArray(journalTransactions)
-        ? objectTransactions(journalTransactions)
-        : [];
+      : [];
 
-  if (!Array.isArray(parsed) && !hasTransactions && !hasCommitments) {
-    throw new Error("در این فایل آرایهٔ transactions یا commitment_schedules پیدا نشد؛ این بخش‌ها می‌توانند در ریشه یا داخل journal باشند.");
+  if (!Array.isArray(parsed) && !hasTransactions && !hasCommitments && !hasLiabilities) {
+    throw new Error("در ریشهٔ JSON هیچ‌کدام از آرایه‌های transactions، commitments یا liabilities پیدا نشد.");
   }
   const valid: Transaction[] = [];
   const invalid: ImportResult["invalid"] = [];
@@ -159,9 +224,18 @@ export function parseFinancialJson(input: string): ImportResult {
     try { valid.push(parseTransaction(item as RawTransaction, index)); }
     catch (error) { invalid.push({ index, reason: error instanceof Error ? error.message : "رکورد نامعتبر", raw: item }); }
   });
-  const commitments = schedulesToCommitments(schedules);
+  const defaultCurrency = exportObject?.currency;
+  const liabilities = parseLiabilities(rootLiabilities, defaultCurrency);
+  const commitments = apiCommitments(rootCommitments, liabilities, defaultCurrency);
+  const summary = parseSummary(exportObject?.summary, defaultCurrency);
   if (!valid.length && !invalid.length && !commitments.length) {
     throw new Error("فایل معتبر است، اما هیچ تراکنش یا تعهدی برای ورود ندارد.");
   }
-  return { valid, invalid, commitments: commitments.length ? commitments : undefined };
+  return {
+    valid,
+    invalid,
+    commitments: commitments.length ? commitments : undefined,
+    liabilities: liabilities.length ? liabilities : undefined,
+    summary,
+  };
 }

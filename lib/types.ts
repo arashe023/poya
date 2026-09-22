@@ -70,6 +70,27 @@ export interface ImportResult {
   valid: Transaction[];
   invalid: InvalidRecord[];
   commitments?: Commitment[];
+  liabilities?: Liability[];
+  summary?: ImportedFinancialSummary;
+}
+
+export interface Liability {
+  id: string;
+  name: string;
+  account: string;
+  totalDue: number;
+  paid: number;
+  remaining: number;
+  currency: CurrencyUnit;
+  status: string;
+}
+
+export interface ImportedFinancialSummary {
+  income: number;
+  expense: number;
+  net: number;
+  transactionCount: number;
+  currency: CurrencyUnit;
 }
 
 export interface Filters {
