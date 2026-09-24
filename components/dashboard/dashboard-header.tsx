@@ -126,7 +126,7 @@ export function DashboardHeader({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pb-3">
+        <div className="-mx-4 flex flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
           <span className="hidden items-center gap-1.5 pl-1 text-[10.5px] font-semibold text-[var(--muted)] md:inline-flex">
             <Filter size={13} />
             فیلترها

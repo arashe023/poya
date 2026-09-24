@@ -19,7 +19,7 @@ export function Sidebar({ view, onViewChange, open, onClose }: { view: Dashboard
       <aside
         aria-label="منوی اصلی"
         className={cn(
-          "fixed inset-y-0 right-0 z-40 flex w-[252px] flex-col border-l border-white/[0.06] bg-gradient-to-b from-[var(--sidebar)] to-[var(--sidebar-2)] px-3 py-4 text-[var(--sidebar-text)] transition-transform duration-200 lg:translate-x-0",
+          "fixed inset-y-0 right-0 z-40 flex w-[min(252px,calc(100vw-2rem))] flex-col overflow-y-auto overscroll-contain border-l border-white/[0.06] bg-gradient-to-b from-[var(--sidebar)] to-[var(--sidebar-2)] px-3 py-4 text-[var(--sidebar-text)] transition-transform duration-200 lg:translate-x-0",
           open ? "translate-x-0 shadow-2xl" : "translate-x-full lg:shadow-none",
         )}
       >

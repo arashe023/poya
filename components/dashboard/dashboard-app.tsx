@@ -73,6 +73,17 @@ export function DashboardApp() {
     if (hydrated) localStorage.setItem(COMMITMENTS_STORAGE_KEY, JSON.stringify(commitments));
   }, [commitments, hydrated]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
   const filtered = useMemo(() => filterTransactions(transactions, filters), [transactions, filters]);
   const comparisonTransactions = useMemo(() => filterTransactions(transactions, { ...filters, datePreset: "all", startDate: undefined, endDate: undefined }), [transactions, filters]);
   const accounts = useMemo(() => [...new Set(transactions.map((t) => t.account.raw))].sort(), [transactions]);
