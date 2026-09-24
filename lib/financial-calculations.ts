@@ -1,5 +1,6 @@
 import { formatJalaliMonth, JALALI_MONTHS, monthKey } from "@/lib/jalali-date";
 import { toPersianNumber } from "@/lib/formatters";
+import { normalizeCurrency, toBaseRial } from "@/lib/currency";
 import type { CategoryStats, Commitment, FinancialPosition, FriendReceivable, MonthlyStats, Transaction, TransactionType } from "@/lib/types";
 
 export function totals(transactions: Transaction[]) {
@@ -20,13 +21,33 @@ export const commitmentStatus = (commitment: Commitment) => paymentStatus(commit
 export const collectionStatus = (commitment: Commitment) => paymentStatus(friendsExpected(commitment), friendsReceived(commitment));
 
 export function financialPosition(transactions: Transaction[], commitments: Commitment[]): FinancialPosition {
-  const bankTransactions = transactions.filter((transaction) => transaction.account.type === "assets" && ["bank", "cash"].includes(transaction.account.category));
-  const transactionCash = bankTransactions.length ? bankTransactions.reduce((sum, transaction) => sum + transaction.amountIRR, 0) : totals(transactions).balance;
-  const hasBankLedger = bankTransactions.length > 0;
-  // Commitments are entered in تومان, while imported transactions are normalized to ریال.
-  const paidToProviders = commitments.reduce((sum, commitment) => sum + Math.min(commitment.paidToProvider, commitment.totalDue), 0) * 10;
-  const receivedFromFriends = commitments.reduce((sum, commitment) => sum + friendsReceived(commitment), 0) * 10;
-  const cashBalance = hasBankLedger ? transactionCash : transactionCash - paidToProviders + receivedFromFriends;
+  // Ledger imports contain both sides of a transaction. Use the bank/cash
+  // posting directly; using the expense/income side loses account movements.
+  const ledgerCash = transactions.reduce((sum, transaction) => {
+    const postings = Array.isArray(transaction.raw.postings) ? transaction.raw.postings as Array<{ account?: unknown; amount?: unknown; commodity?: unknown }> : [];
+    const bankPostings = postings.filter((posting) => {
+      const account = String(posting.account ?? "").split(":");
+      return account[0] === "assets" && ["bank", "cash"].includes(account[1] ?? "");
+    });
+    if (bankPostings.length) return sum + bankPostings.reduce((subtotal, posting) => {
+      const amount = Number(posting.amount ?? 0);
+      const unit = normalizeCurrency(posting.commodity ?? transaction.raw.currency ?? transaction.raw.commodity) ?? transaction.originalUnit;
+      return subtotal + toBaseRial(Number.isFinite(amount) ? amount : 0, unit);
+    }, 0);
+    if (transaction.account.type === "assets" && ["bank", "cash"].includes(transaction.account.category)) return sum + transaction.amountIRR;
+    return sum;
+  }, 0);
+  const hasBankLedger = transactions.some((transaction) => {
+    const postings = Array.isArray(transaction.raw.postings) ? transaction.raw.postings as Array<{ account?: unknown }> : [];
+    return postings.some((posting) => {
+      const account = String(posting.account ?? "").split(":");
+      return account[0] === "assets" && ["bank", "cash"].includes(account[1] ?? "");
+    }) || (transaction.account.type === "assets" && ["bank", "cash"].includes(transaction.account.category));
+  });
+  // When no explicit bank ledger is available, show net recorded cash flow as
+  // an estimate. Historical commitment payments are already past cash flows
+  // and must not be subtracted again from this value.
+  const cashBalance = hasBankLedger ? ledgerCash : totals(transactions).balance;
   const totalReceivables = commitments.reduce((sum, commitment) => sum + friendsRemaining(commitment), 0) * 10;
   const totalLiabilities = commitments.reduce((sum, commitment) => sum + providerRemaining(commitment), 0) * 10;
   return { cashBalance, spendableBalance: cashBalance, totalReceivables, totalLiabilities, netPosition: cashBalance + totalReceivables - totalLiabilities };

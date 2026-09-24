@@ -16,6 +16,7 @@ import type { Commitment, CurrencyUnit, Transaction } from "@/lib/types";
 
 export function Overview({
   transactions,
+  allTransactions,
   comparisonTransactions,
   commitments,
   unit,
@@ -24,6 +25,7 @@ export function Overview({
   onSelect,
 }: {
   transactions: Transaction[];
+  allTransactions: Transaction[];
   comparisonTransactions: Transaction[];
   commitments: Commitment[];
   unit: CurrencyUnit;
@@ -31,7 +33,7 @@ export function Overview({
   onTransactions: () => void;
   onSelect: (t: Transaction) => void;
 }) {
-  const position = financialPosition(transactions, commitments);
+  const position = financialPosition(allTransactions, commitments);
 
   /* Trend numbers always compare the two most recent months that exist in the
      data, so they stay meaningful even when a date filter is active. */

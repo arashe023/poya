@@ -115,7 +115,7 @@ export function DashboardApp() {
 
   const content = () => {
     if (!transactions.length && view !== "import" && view !== "settings") return <EmptyState onImport={() => setImportOpen(true)} onSample={loadSample} />;
-    if (view === "overview") return <Overview transactions={filtered} comparisonTransactions={comparisonTransactions} commitments={commitments} unit={unit} onCategory={goCategory} onTransactions={() => setView("transactions")} onSelect={setSelected} />;
+    if (view === "overview") return <Overview transactions={filtered} allTransactions={transactions} comparisonTransactions={comparisonTransactions} commitments={commitments} unit={unit} onCategory={goCategory} onTransactions={() => setView("transactions")} onSelect={setSelected} />;
     if (view === "transactions") return <TransactionTable transactions={filtered} unit={unit} filters={filters} setFilters={setFilters} accounts={accounts} categories={categories} onSelect={setSelected} />;
     if (view === "accounts") return <AccountTree transactions={filtered} unit={unit} />;
     if (view === "commitments") return <CommitmentsView commitments={commitments} unit={unit} onChange={setCommitments} />;
